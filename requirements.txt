@@ -1,0 +1,8 @@
+google-cloud-aiplatform>=1.47.0
+google-cloud-storage>=2.16.0
+google-cloud-firestore>=2.15.0
+fastapi>=0.110.1
+uvicorn>=0.29.0
+python-dotenv>=1.0.1
+google-auth>=2.29.0
+google-api-python-client
