@@ -39,15 +39,13 @@ def transcribir_segmento(ruta_audio: str, num_segmento: int, modelo_id: str = "g
     
     prompt = """
     Eres un perito legal experto en transcripciones de casos.
-    Escucha atentamente el siguiente segmento de audio y procesa la información solicitada.
+    Escucha atentamente el siguiente segmento de audio y transcríbelo.
     
     INSTRUCCIONES CRÍTICAS:
-    1. PREGUNTA CLAVE: ¿En algún punto del audio el cliente solicita correcciones o comenta que algo está erróneo en su proceso? Responde claro y detalla el comentario si existe.
-    2. ROLES: Identifica quién es el 'Abogado' (quien dirige/pregunta) y quién el 'Cliente' (quien da testimonio). 
-    3. TIEMPOS: Extrae el tiempo de inicio de cada intervención.
-    4. FORMATO: Devuelve EXCLUSIVAMENTE un objeto JSON válido con esta estructura exacta:
+    1. ROLES: Identifica quién es el 'Abogado' (quien dirige/pregunta) y quién el 'Cliente' (quien da testimonio).
+    2. TIEMPOS: Extrae el tiempo de inicio de cada intervención.
+    3. FORMATO: Devuelve EXCLUSIVAMENTE un objeto JSON válido con esta estructura exacta:
     {
-      "analisis_correcciones": "Tu respuesta a la pregunta clave basándote en este audio.",
       "transcripcion": [
         {"tiempo_ms": 1000, "hablante": "Abogado", "texto": "Buenos días, cuénteme su caso."},
         {"tiempo_ms": 5000, "hablante": "Cliente", "texto": "Buenos días abogado, mi historia es..."}
@@ -81,7 +79,6 @@ def procesar_transcripcion_completa(carpeta_segmentos: str) -> dict:
     """
     segmentos_audio = sorted([f for f in os.listdir(carpeta_segmentos) if f.endswith(".flac")])
     transcripcion_completa = []
-    analisis_global = []
     
     # Sabemos por el preprocesador que cada segmento mide exactamente 15 minutos (900,000 ms)
     ms_por_segmento = 3000000
@@ -91,9 +88,6 @@ def procesar_transcripcion_completa(carpeta_segmentos: str) -> dict:
         inicio_ms_real = i * ms_por_segmento
         
         datos_segmento = transcribir_segmento(ruta_audio, num_segmento=i+1)
-        
-        # Guardamos el análisis de este segmento específico
-        analisis_global.append(f"--- Análisis Segmento {i+1} ---\n{datos_segmento.get('analisis_correcciones', 'Sin análisis')}")
         
         bloques = datos_segmento.get('transcripcion', [])
             
@@ -110,7 +104,6 @@ def procesar_transcripcion_completa(carpeta_segmentos: str) -> dict:
             })
 
     return {
-        "analisis_completo": "\n\n".join(analisis_global),
         "lineas_transcripcion": transcripcion_completa
     }
 
@@ -119,10 +112,7 @@ def generar_texto_para_doc(datos_procesados: dict) -> str:
     Convierte el diccionario de resultados en un formato de texto limpio
     ideal para inyectarlo como contenido en el Google Doc.
     """
-    texto_doc = "=== ANÁLISIS DE CORRECCIONES SOLICITADAS POR EL CLIENTE ===\n\n"
-    texto_doc += datos_procesados.get('analisis_completo', '') + "\n\n"
-    texto_doc += "===========================================================\n"
-    texto_doc += "=== TRANSCRIPCIÓN COMPLETA ===\n\n"
+    texto_doc = "=== TRANSCRIPCIÓN COMPLETA ===\n\n"
     
     for linea in datos_procesados.get('lineas_transcripcion', []):
         texto_doc += f"[{linea['tiempo_formato']}] {linea['hablante']}: {linea['texto']}\n"

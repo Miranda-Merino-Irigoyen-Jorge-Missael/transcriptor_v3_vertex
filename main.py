@@ -101,8 +101,8 @@ def ejecutar_pipeline():
         indice_array_input = col_input_idx_base1 - 1
         indice_array_output = col_output_idx_base1 - 1
 
-        # Iteramos desde la fila 6 (índice 5 en programación)
-        for idx in range(5, len(valores)):
+        # Iteramos desde la fila 5 (índice 4 en programación)
+        for idx in range(4, len(valores)):
             fila = valores[idx]
             num_fila_real = idx + 1 
             
