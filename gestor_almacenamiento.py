@@ -2,6 +2,7 @@ import os
 import re
 import io
 import logging
+import requests
 from pathlib import Path
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -64,34 +65,68 @@ class DropboxDownloader:
         except Exception as e:
             logger.warning(f"No se pudo configurar path_root de Dropbox: {e}")
 
+    def _get_file_name_from_url(self, url: str) -> str:
+        """Extrae el nombre del archivo directamente desde la URL como último recurso."""
+        path_part = url.split('?')[0].rstrip('/')
+        return path_part.split('/')[-1] or "audio_dropbox.mp3"
+
+    def _download_direct_http(self, shared_link: str, local_path: Path) -> None:
+        """Fallback: descarga directa vía HTTP convirtiendo el enlace compartido a enlace de descarga."""
+        # Reemplazar dl=0 por dl=1, o añadir dl=1 si no está presente
+        if 'dl=0' in shared_link:
+            direct_url = shared_link.replace('dl=0', 'dl=1')
+        elif 'dl=1' not in shared_link:
+            sep = '&' if '?' in shared_link else '?'
+            direct_url = f"{shared_link}{sep}dl=1"
+        else:
+            direct_url = shared_link
+
+        logger.info(f"Usando descarga HTTP directa como fallback para: {local_path.name}")
+        with requests.get(direct_url, stream=True, timeout=120) as resp:
+            resp.raise_for_status()
+            with open(local_path, 'wb') as f:
+                for chunk in resp.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
     def download(self, shared_link: str, download_dir: str) -> str:
         path_dir = Path(download_dir)
         path_dir.mkdir(parents=True, exist_ok=True)
+
+        # Intentar obtener el nombre del archivo desde los metadatos
+        file_name = None
         try:
             metadata = self.dbx.sharing_get_shared_link_metadata(url=shared_link)
-            
-            # CORRECCIÓN: Usamos hasattr(metadata, 'name') en lugar de exigir path_lower
-            if hasattr(metadata, 'name'):
-                file_name = "".join(c for c in metadata.name if c.isalnum() or c in ('.', '_', '-')).rstrip()
-                
-                if "." in metadata.name:
-                    ext = metadata.name.split(".")[-1]
-                    if not file_name.endswith(ext):
+            if hasattr(metadata, 'name') and metadata.name:
+                raw = metadata.name
+                file_name = "".join(c for c in raw if c.isalnum() or c in ('.', '_', '-')).rstrip()
+                if "." in raw:
+                    ext = raw.split(".")[-1]
+                    if not file_name.endswith(f".{ext}"):
                         file_name = f"{file_name}.{ext}"
-                    
-                local_path = path_dir / file_name
-                logger.info(f"Descargando archivo directo de Dropbox: {file_name}")
-                self.dbx.sharing_get_shared_link_file_to_file(
-                    download_path=str(local_path),
-                    url=shared_link
-                )
-                return str(local_path)
-            else:
-                raise ValueError("El enlace de Dropbox no contiene un nombre de archivo válido.")
-                
-        except Exception as e:
-            logger.error(f"Error descargando de Dropbox: {e}")
-            raise ValueError("No se pudo extraer ningún archivo del enlace de Dropbox.")
+        except Exception as meta_err:
+            logger.warning(f"No se pudo obtener metadatos de Dropbox ({meta_err}). Se usará nombre desde URL.")
+
+        if not file_name:
+            file_name = self._get_file_name_from_url(shared_link)
+
+        local_path = path_dir / file_name
+        logger.info(f"Descargando archivo directo de Dropbox: {file_name}")
+
+        # Intentar descarga por SDK; si falla (ej. bug .tag), usar HTTP directo
+        try:
+            self.dbx.sharing_get_shared_link_file_to_file(
+                download_path=str(local_path),
+                url=shared_link
+            )
+        except Exception as sdk_err:
+            logger.warning(f"Descarga SDK falló ({sdk_err}). Intentando fallback HTTP directo...")
+            try:
+                self._download_direct_http(shared_link, local_path)
+            except Exception as http_err:
+                logger.error(f"Fallback HTTP también falló: {http_err}")
+                raise ValueError("No se pudo extraer ningún archivo del enlace de Dropbox.")
+
+        return str(local_path)
 
 # --- 3. GESTIÓN CENTRALIZADA DE AUDIOS ---
 def extraer_id_drive(url: str) -> str:
