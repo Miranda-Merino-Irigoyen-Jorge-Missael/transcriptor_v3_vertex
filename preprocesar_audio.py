@@ -16,14 +16,16 @@ def preprocesar_con_ffmpeg(ruta_entrada: str, carpeta_salida: str, duracion_segm
     
     # Comando limpio: Solo segmenta y pasa a FLAC (16kHz, mono) sin analizar volumen
     comando = [
-        "ffmpeg", 
-        "-y",                 
-        "-i", ruta_entrada,   
-        "-ar", "16000",       
-        "-ac", "1",           
-        "-c:a", "flac",       
-        "-f", "segment",      
-        "-segment_time", str(duracion_segmento_segundos), 
+        "ffmpeg",
+        "-y",
+        "-analyzeduration", "20000000",  # 20s en microsegundos — necesario para archivos con headers rotos
+        "-probesize",       "50000000",  # 50MB — permite detectar el codec aunque el header esté dañado
+        "-i", ruta_entrada,
+        "-ar", "16000",
+        "-ac", "1",
+        "-c:a", "flac",
+        "-f", "segment",
+        "-segment_time", str(duracion_segmento_segundos),
         "-reset_timestamps", "1",
         patron_salida
     ]

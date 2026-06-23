@@ -84,6 +84,12 @@ class DropboxDownloader:
         logger.info(f"Usando descarga HTTP directa como fallback para: {local_path.name}")
         with requests.get(direct_url, stream=True, timeout=120) as resp:
             resp.raise_for_status()
+            content_type = resp.headers.get('Content-Type', '')
+            if 'text/html' in content_type:
+                raise ValueError(
+                    f"Dropbox devolvió HTML en lugar del archivo de audio (Content-Type: {content_type}). "
+                    "El enlace puede haber expirado o requerir autenticación."
+                )
             with open(local_path, 'wb') as f:
                 for chunk in resp.iter_content(chunk_size=8192):
                     f.write(chunk)
