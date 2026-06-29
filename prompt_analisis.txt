@@ -1,0 +1,145 @@
+Actúas como un experto en análisis de conversaciones de ventas para servicios legales especializados, con amplio conocimiento en persuasión, psicología del cliente en situación de vulnerabilidad, técnicas de cierre en alto valor emocional y estructuración de guiones telefónicos.
+
+Tu tarea es analizar la **transcripción de una llamada de venta real** que se te proporcionará al final de este mensaje, correspondiente a una firma de abogados que ofrece:
+
+**Categoría A: Procesos humanitarios** (Visa T, VAWA, Visa U, Visa K1, asilo, etc.)
+**Categoría B: Procesos no humanitarios** (procesos consulares, ajuste de estatus, permisos de trabajo, green card por familia, etc.)
+
+---
+
+## INSTRUCCIONES DE FORMATO
+
+Redacta tu respuesta **exclusivamente en Markdown** con la siguiente estructura. Usa los encabezados indicados (con `#`, `##`, `###`), **negritas** para términos clave, listas con `- ` para ítems y tablas Markdown para comparativos. Incluye citas textuales de la transcripción entre comillas. No incluyas bloques de código. Tu tono debe ser constructivo, orientado a la mejora continua y alineado con la ética legal (no prometer resultados garantizados).
+
+---
+
+# INFORME DE ANÁLISIS DE LLAMADA DE VENTAS
+
+---
+
+## 1. ESTRUCTURA DE LA LLAMADA
+
+Segmenta la transcripción en las siguientes fases. Para cada fase presente, indica:
+- **Tiempo aproximado** de inicio y cierre.
+- **Objetivo** de la fase.
+- **Preguntas clave** realizadas por el asesor.
+- **Respuestas del cliente** que marcaron un punto de inflexión.
+- **Frase de transición** usada para cambiar de tema.
+- **Evaluación breve** de si fue ejecutada de forma efectiva o débil.
+
+### Fases a identificar:
+
+- **Apertura y rapport** — Creación de confianza inicial.
+- **Calificación del prospecto** — Viabilidad legal del caso.
+- **Diagnóstico migratorio** — Levantamiento detallado de la situación.
+- **Presentación del servicio** — Humanitario vs. no humanitario.
+- **Beneficios y diferenciación** — Por qué esta firma vs. otras opciones.
+- **Manejo de objeciones** — Respuesta a dudas, miedos o resistencias.
+- **Cierre** — Intento formal de concretar la venta.
+- **Despedida y siguiente paso** — Qué queda pendiente y cómo.
+
+> Para cada fase que **no aparezca o esté subdesarrollada**, indícalo explícitamente y describe cómo debería haberse ejecutado.
+
+---
+
+## 2. ESTRATEGIAS DE PERSUASIÓN DETECTADAS
+
+Identifica ejemplos concretos de las siguientes técnicas. Para cada una, cita textualmente el fragmento de la transcripción y explica por qué funciona (o por qué no).
+
+### Principios de Cialdini aplicados
+- **Reciprocidad** — ¿Se ofreció algo de valor antes de pedir?
+- **Escasez** — ¿Se usaron plazos o disponibilidad limitada?
+- **Autoridad** — ¿Se hizo referencia a expertise, casos ganados, credenciales?
+- **Consistencia** — ¿Se buscó que el cliente se comprometiera progresivamente?
+- **Prueba social** — ¿Se mencionaron otros clientes o resultados?
+- **Simpatía** — ¿El asesor generó conexión personal o empatía?
+
+### Otras estrategias detectadas
+- **Storytelling emocional** — Historias, analogías o casos similares.
+- **Argumentos legales o datos** — Plazos, estadísticas, requisitos específicos.
+- **Lenguaje verbal con impacto** — Pausas estratégicas, énfasis, repetición.
+- **Frases que generan urgencia o confianza** — Citar ejemplos textuales.
+
+---
+
+## 3. MANEJO EMOCIONAL Y CONTENCIÓN
+
+Identifica momentos en que el cliente mostró angustia, enojo, frustración, dudas o ansiedad. Para cada situación:
+
+- **Descripción del momento** — Cita textual de lo que dijo el cliente.
+- **Respuesta del asesor** — Cita textual o paráfrasis de su reacción.
+- **Técnica aplicada** — Escucha activa, validación, normalización, redirección, pausa.
+- **Efectividad** — ¿Funcionó? ¿Por qué sí o no?
+- **Alternativa recomendada** — Qué frase o técnica hubiera sido más efectiva.
+
+---
+
+## 4. ESTRATEGIAS DE VENTA Y CIERRE
+
+Analiza con detalle:
+
+- **Tipo de cierre utilizado** — Directo, por opciones, por urgencia, condicionado, por escasez, etc.
+- **Manejo de cada objeción** — Costo, tiempo, desconfianza, miedo. ¿Cómo se resolvió?
+- **Upselling o cross-selling** — ¿Se ofrecieron servicios adicionales?
+- **Llamada a la acción** — ¿Qué se le pidió exactamente al cliente y cómo se formuló?
+- **Resultado del cierre** — ¿Fue exitoso? Si no, ¿cuál fue el motivo principal?
+
+---
+
+## 5. ANÁLISIS COMPARATIVO: LLAMADA REAL VS. LLAMADA IDEAL
+
+| Fase | Estado en la llamada | Nivel de ejecución | Recomendación |
+|---|---|---|---|
+| Apertura y rapport | Presente / Ausente | Fuerte / Débil / Aceptable | ... |
+| Calificación del prospecto | Presente / Ausente | Fuerte / Débil / Aceptable | ... |
+| Diagnóstico migratorio | Presente / Ausente | Fuerte / Débil / Aceptable | ... |
+| Presentación del servicio | Presente / Ausente | Fuerte / Débil / Aceptable | ... |
+| Beneficios y diferenciación | Presente / Ausente | Fuerte / Débil / Aceptable | ... |
+| Manejo de objeciones | Presente / Ausente | Fuerte / Débil / Aceptable | ... |
+| Cierre | Presente / Ausente | Fuerte / Débil / Aceptable | ... |
+| Despedida y siguiente paso | Presente / Ausente | Fuerte / Débil / Aceptable | ... |
+
+> Completa la tabla con datos reales extraídos de la transcripción. Añade filas adicionales si detectas desviaciones o improvisaciones relevantes.
+
+---
+
+## 6. RECOMENDACIONES DE CAPACITACIÓN
+
+### Fortalezas a reforzar
+Enumera **3 habilidades** que el asesor demostró y que deben reconocerse y potenciarse.
+
+### Áreas de mejora prioritarias
+Enumera **3 debilidades concretas** detectadas en la llamada.
+
+### Ejercicios prácticos recomendados
+Para cada debilidad, propón:
+- Un **ejercicio de role-play** específico.
+- **Frases guía** que el asesor puede memorizar.
+- Un **checklist de verificación** para autoevaluar su desempeño en futuras llamadas.
+
+---
+
+## 7. GUION OPTIMIZADO (FRAGMENTO CLAVE)
+
+Basándote en la fase de cierre o manejo de objeciones real de esta llamada, reescribe ese fragmento con la versión mejorada: cómo debería haberse desarrollado idealmente, incluyendo las frases exactas sugeridas para el asesor. Señala qué cambió y por qué.
+
+---
+
+## 8. EVALUACIÓN GLOBAL
+
+| Categoría | Puntuación (1-10) | Comentario breve |
+|---|---|---|
+| Rapport y conexión emocional | | |
+| Diagnóstico y calificación | | |
+| Presentación del servicio | | |
+| Manejo de objeciones | | |
+| Técnica de cierre | | |
+| Contención emocional | | |
+| **Puntuación total** | **(promedio)** | |
+
+> Incluye un párrafo final de conclusión con las **3 acciones más urgentes** que el asesor debe implementar antes de su próxima llamada.
+
+---
+
+## TRANSCRIPCIÓN A ANALIZAR
+

@@ -4,19 +4,14 @@ import logging
 import time
 import vertexai
 from vertexai.generative_models import GenerativeModel, Part, HarmCategory, HarmBlockThreshold
+import gestor_almacenamiento 
 
 logger = logging.getLogger(__name__)
-
-# Inicializamos Vertex AI. Al estar en Cloud Run o Local, tomará el PROJECT_ID
 vertexai.init(location="global")
 
-def transcribir_segmento(ruta_audio: str, num_segmento: int, modelo_id: str = "gemini-3.5-flash") -> dict:
-    """
-    Envía un segmento de audio a Gemini para transcripción y análisis de correcciones.
-    """
-    logger.info(f"[PROCESANDO] Enviando segmento {num_segmento} a {modelo_id}...")
+def transcribir_segmento(uri_gcs: str, num_segmento: int, modelo_id: str = "gemini-3.5-flash") -> dict:
+    logger.info(f"[PROCESANDO] Enviando segmento {num_segmento} a {modelo_id} desde {uri_gcs}...")
     
-    # Configuramos la seguridad para evitar bloqueos en testimonios sensibles
     configuracion_segura = {
         HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
         HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
@@ -24,34 +19,32 @@ def transcribir_segmento(ruta_audio: str, num_segmento: int, modelo_id: str = "g
         HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
     }
     
-    # AQUÍ ESTÁ EL CAMBIO: Forzamos salida JSON y extendemos el límite de tokens al máximo
     configuracion_generacion = {
         "response_mime_type": "application/json",
-        "max_output_tokens": 60000,
+        "max_output_tokens": 60000, 
     }
     
     modelo = GenerativeModel(modelo_id)
-    
-    # Cargamos el audio en memoria como un objeto Part
-    with open(ruta_audio, "rb") as f:
-        audio_bytes = f.read()
-    audio_part = Part.from_data(data=audio_bytes, mime_type="audio/flac")
+    audio_part = Part.from_uri(uri=uri_gcs, mime_type="audio/flac")
     
     prompt = """
-    Eres un perito legal experto en transcripciones de casos.
-    Escucha atentamente el siguiente segmento de audio y transcríbelo.
+    Eres un perito legal experto en transcripciones.
+    Escucha atentamente el audio COMPLETO y transcríbelo TODO palabra por palabra. No resumas.
     
     INSTRUCCIONES CRÍTICAS:
-    1. ROLES: Identifica quién es el 'Abogado' (quien dirige/pregunta) y quién el 'Cliente' (quien da testimonio).
-    2. TIEMPOS: Extrae el tiempo de inicio de cada intervención.
-    3. FORMATO: Devuelve EXCLUSIVAMENTE un objeto JSON válido con esta estructura exacta:
+    1. ROLES: Identifica quién es el 'Abogado' y quién el 'Cliente'. Si no estás seguro o es un tercero, usa 'Hablante 1', 'Hablante 2', 'Operadora', etc.
+    2. TIEMPOS: Extrae el tiempo de inicio de cada intervención en milisegundos.
+    3. FORMATO: Devuelve EXCLUSIVAMENTE un objeto JSON válido.
+    
+    ¡IMPORTANTE! Jamás debes devolver el array de "transcripcion" vacío. Si hay voces o ruido, transcríbelo o descríbelo.
+    
+    Estructura exacta esperada:
     {
       "transcripcion": [
-        {"tiempo_ms": 1000, "hablante": "Abogado", "texto": "Buenos días, cuénteme su caso."},
-        {"tiempo_ms": 5000, "hablante": "Cliente", "texto": "Buenos días abogado, mi historia es..."}
+        {"tiempo_ms": 1000, "hablante": "Abogado", "texto": "Buenos días."},
+        {"tiempo_ms": 5000, "hablante": "Operadora", "texto": "Por favor espere..."}
       ]
     }
-    No incluyas markdown ni texto fuera del JSON.
     """
 
     max_intentos = 3
@@ -64,6 +57,7 @@ def transcribir_segmento(ruta_audio: str, num_segmento: int, modelo_id: str = "g
             )
             
             if respuesta.text:
+                logger.info(f"[DEBUG IA] Respuesta cruda (Inicio): {respuesta.text[:500]}")
                 return json.loads(respuesta.text)
                 
         except Exception as e:
@@ -71,50 +65,46 @@ def transcribir_segmento(ruta_audio: str, num_segmento: int, modelo_id: str = "g
             time.sleep(5) 
             
     logger.error(f"[ERROR CRÍTICO] No se pudo transcribir el segmento {num_segmento}.")
-    return {"analisis_correcciones": "Error: IA no pudo analizar este segmento.", "transcripcion": []}
+    return {"transcripcion": []}
 
-def procesar_transcripcion_completa(carpeta_segmentos: str) -> dict:
-    """
-    Orquesta la transcripción de todos los segmentos, ajusta los tiempos y consolida el análisis.
-    """
+def procesar_transcripcion_completa(carpeta_segmentos: str, nombre_bucket: str) -> dict:
     segmentos_audio = sorted([f for f in os.listdir(carpeta_segmentos) if f.endswith(".flac")])
     transcripcion_completa = []
-    
-    # Sabemos por el preprocesador que cada segmento mide exactamente 15 minutos (900,000 ms)
-    ms_por_segmento = 3000000
+    ms_por_segmento = 3600000 # Emparejado con la segmentación de ffmpeg (1 hora)
 
     for i, nombre_audio in enumerate(segmentos_audio):
-        ruta_audio = os.path.join(carpeta_segmentos, nombre_audio)
+        ruta_audio_local = os.path.join(carpeta_segmentos, nombre_audio)
+        ruta_destino_gcs = f"tmp_procesamiento/segmento_{i+1}_{int(time.time())}.flac"
         inicio_ms_real = i * ms_por_segmento
+        uri_gcs = ""
         
-        datos_segmento = transcribir_segmento(ruta_audio, num_segmento=i+1)
+        try:
+            uri_gcs = gestor_almacenamiento.subir_a_gcs(ruta_audio_local, nombre_bucket, ruta_destino_gcs)
+            datos_segmento = transcribir_segmento(uri_gcs, num_segmento=i+1)
+            
+            bloques = datos_segmento.get('transcripcion', [])
+            if not bloques:
+                logger.warning(f"⚠️ El segmento {i+1} no generó ningún texto de transcripción en el JSON.")
+                
+            for b in bloques:
+                ms_reales = int(b.get('tiempo_ms', 0)) + inicio_ms_real
+                minutos = ms_reales // 60000
+                segundos = (ms_reales % 60000) // 1000
+                
+                transcripcion_completa.append({
+                    "tiempo_formato": f"{minutos:02d}:{segundos:02d}",
+                    "hablante": b.get('hablante', 'Desconocido'),
+                    "texto": b.get('texto', '')
+                })
         
-        bloques = datos_segmento.get('transcripcion', [])
-            
-        for b in bloques:
-            # Sumamos el tiempo base del segmento
-            ms_reales = int(b.get('tiempo_ms', 0)) + inicio_ms_real
-            minutos = ms_reales // 60000
-            segundos = (ms_reales % 60000) // 1000
-            
-            transcripcion_completa.append({
-                "tiempo_formato": f"{minutos:02d}:{segundos:02d}",
-                "hablante": b.get('hablante', 'Desconocido'),
-                "texto": b.get('texto', '')
-            })
+        finally:
+            if uri_gcs:
+                gestor_almacenamiento.eliminar_de_gcs(nombre_bucket, ruta_destino_gcs)
 
-    return {
-        "lineas_transcripcion": transcripcion_completa
-    }
+    return {"lineas_transcripcion": transcripcion_completa}
 
 def generar_texto_para_doc(datos_procesados: dict) -> str:
-    """
-    Convierte el diccionario de resultados en un formato de texto limpio
-    ideal para inyectarlo como contenido en el Google Doc.
-    """
     texto_doc = "=== TRANSCRIPCIÓN COMPLETA ===\n\n"
-    
     for linea in datos_procesados.get('lineas_transcripcion', []):
         texto_doc += f"[{linea['tiempo_formato']}] {linea['hablante']}: {linea['texto']}\n"
-        
     return texto_doc

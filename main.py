@@ -19,14 +19,14 @@ logger = logging.getLogger(__name__)
 # --- VARIABLES DINÁMICAS DESDE .ENV ---
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
 FOLDER_DOCS_ID = os.getenv("FOLDER_DOCS_ID")
-SHEET_NAME = os.getenv("SHEET_NAME", "8x8 Call Records") # Valor por defecto por si se te olvida ponerlo
+GCP_BUCKET_NAME = os.getenv("GCP_BUCKET_NAME")           # NUEVO: Nombre de tu bucket en GCP
+SHEET_NAME = os.getenv("SHEET_NAME", "8x8 Call Records") # Valor por defecto
 COL_INPUT_LETTER = os.getenv("COL_INPUT", "Q")           # Columna donde buscará los enlaces
 COL_OUTPUT_LETTER = os.getenv("COL_OUTPUT", "R")         # Columna donde escribirá el Google Doc
 
 def letra_a_columna(letra: str) -> int:
     """
-    Convierte una letra de columna de Excel/Sheets (ej. 'A', 'Q', 'AA') 
-    a un índice numérico base 1 (ej. A=1, Q=17, R=18).
+    Convierte una letra de columna de Excel/Sheets a un índice numérico base 1.
     """
     letra = letra.upper()
     columna = 0
@@ -39,11 +39,10 @@ def obtener_hoja():
     creds = gestor_almacenamiento.obtener_credenciales_oauth()
     cliente_sheets = gspread.authorize(creds)
     spreadsheet = cliente_sheets.open_by_key(SPREADSHEET_ID)
-    # Ahora usamos la variable dinámica para el nombre de la pestaña
     return spreadsheet.worksheet(SHEET_NAME)
 
-def procesar_fila(hoja, num_fila: int, enlace_audio: str, col_output_idx: int):
-    """Ejecuta el flujo completo para un enlace y actualiza la hoja."""
+def procesar_fila(hoja, num_fila: int, enlace_multimedia: str, col_output_idx: int):
+    """Ejecuta el flujo completo para un enlace (audio/video) y actualiza la hoja."""
     logger.info(f"--- Iniciando procesamiento para la fila {num_fila} ---")
     
     carpeta_trabajo = tempfile.mkdtemp(prefix=f"transcripcion_fila_{num_fila}_")
@@ -51,17 +50,21 @@ def procesar_fila(hoja, num_fila: int, enlace_audio: str, col_output_idx: int):
     os.makedirs(carpeta_segmentos, exist_ok=True)
     
     try:
-        # 1. Descargar el audio
-        logger.info(f"Paso 1: Descargando audio desde -> {enlace_audio}")
-        ruta_audio = gestor_almacenamiento.descargar_audio(enlace_audio, carpeta_trabajo)
+        if not GCP_BUCKET_NAME:
+            raise ValueError("Falta GCP_BUCKET_NAME en tu archivo .env. Configúralo antes de continuar.")
+
+        # 1. Descargar el archivo (Audio o Video)
+        logger.info(f"Paso 1: Descargando archivo desde -> {enlace_multimedia}")
+        ruta_multimedia = gestor_almacenamiento.descargar_audio(enlace_multimedia, carpeta_trabajo)
         
-        # 2. Preprocesar (FFMPEG)
-        logger.info("Paso 2: Preprocesando y segmentando con FFMPEG...")
-        rutas_segmentos = preprocesar_audio.preprocesar_con_ffmpeg(ruta_audio, carpeta_segmentos)
+        # 2. Preprocesar (Extraer audio si es video, validar duración y segmentar)
+        logger.info("Paso 2: Preprocesando (Extracción infalible y segmentación)...")
+        rutas_segmentos = preprocesar_audio.preprocesar_con_ffmpeg(ruta_multimedia, carpeta_segmentos)
         
-        # 3. Transcribir y Analizar (Vertex AI)
-        logger.info("Paso 3: Transcribiendo y analizando con Vertex AI...")
-        datos_procesados = motor_transcripcion.procesar_transcripcion_completa(carpeta_segmentos)
+        # 3. Transcribir y Analizar (Vertex AI leyendo desde GCS Bucket)
+        logger.info("Paso 3: Subiendo a Bucket y Transcribiendo con Vertex AI...")
+        # Pasamos el nombre del bucket para que el motor orqueste la subida y limpieza
+        datos_procesados = motor_transcripcion.procesar_transcripcion_completa(carpeta_segmentos, GCP_BUCKET_NAME)
         
         # 4. Generar Google Doc
         logger.info("Paso 4: Generando el Google Doc...")
@@ -84,7 +87,7 @@ def procesar_fila(hoja, num_fila: int, enlace_audio: str, col_output_idx: int):
         logger.info(f"Recursos temporales liberados para fila {num_fila}.\n")
 
 def ejecutar_pipeline():
-    """Lee la hoja, busca audios pendientes y los procesa uno por uno."""
+    """Lee la hoja, busca audios/videos pendientes y los procesa uno por uno."""
     logger.info(f"Conectando a Google Sheets (Pestaña: {SHEET_NAME})...")
     try:
         if not SPREADSHEET_ID or not FOLDER_DOCS_ID:
@@ -93,24 +96,19 @@ def ejecutar_pipeline():
         hoja = obtener_hoja()
         valores = hoja.get_all_values()
         
-        # Calculamos los índices numéricos a partir de las letras
         col_input_idx_base1 = letra_a_columna(COL_INPUT_LETTER)
         col_output_idx_base1 = letra_a_columna(COL_OUTPUT_LETTER)
         
-        # Los arrays en Python empiezan en 0, por lo que restamos 1 para leer de 'valores'
         indice_array_input = col_input_idx_base1 - 1
         indice_array_output = col_output_idx_base1 - 1
 
-        # Iteramos desde la fila 5 (índice 4 en programación)
-        for idx in range(4, len(valores)):
+        for idx in range(1, len(valores)):
             fila = valores[idx]
             num_fila_real = idx + 1 
             
-            # Validamos que la fila no esté vacía y que tenga suficientes columnas
             enlace_q = fila[indice_array_input].strip() if len(fila) > indice_array_input else ""
             resultado_r = fila[indice_array_output].strip() if len(fila) > indice_array_output else ""
             
-            # Si hay enlace y el resultado está vacío
             if enlace_q and not resultado_r:
                 procesar_fila(hoja, num_fila_real, enlace_q, col_output_idx_base1)
                 
@@ -121,6 +119,6 @@ def ejecutar_pipeline():
 
 if __name__ == "__main__":
     print("\n" + "="*50)
-    print("INICIANDO TRANSCRIPTOR BATCH (LOCAL)")
+    print("INICIANDO TRANSCRIPTOR BATCH (SOPORTE AUDIO/VIDEO & GCP BUCKET)")
     print("="*50 + "\n")
     ejecutar_pipeline()
